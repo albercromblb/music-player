@@ -24,17 +24,30 @@
     font:500 13px/1 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
     display:grid; grid-template-columns:32px 1fr 32px; grid-template-rows:auto auto; gap:8px 10px; align-items:center;
   }
+
+  /* ===== Boutons neutralisés (anti-styles du forum) ===== */
   .btn{
-    width:32px;height:32px;border-radius:999px;background:var(--track);
-    display:grid;place-items:center;cursor:pointer;user-select:none;transition:transform .08s ease
+    all: unset;
+    -webkit-appearance: none; appearance: none;
+    display:grid; place-items:center;
+    width:32px; height:32px; border-radius:999px;
+    background:var(--track) !important;
+    cursor:pointer; user-select:none;
+    transition:transform .08s ease;
+    border:none !important; box-shadow:none !important;
+    padding:0; margin:0; line-height:1;
   }
-  .btn:active{transform:scale(.96)}
+  .btn:active{ transform:scale(.96) }
+  .btn::before, .btn::after{ content:none !important; display:none !important; }
+  .player button{ background-image:none !important; border:none !important; box-shadow:none !important; }
+
   .icon{width:0;height:0;border-style:solid}
   .icon.play{border-width:7px 0 7px 12px;border-color:transparent transparent transparent var(--ink-soft);margin-left:2px}
   .icon.pause{width:12px;height:12px;border:none;display:flex;gap:3px}
   .icon.pause span{width:4px;height:12px;background:var(--ink-soft);display:block;border-radius:1px}
   .icon.prev{border-width:7px 12px 7px 0;border-color:transparent var(--ink-soft) transparent transparent;margin-right:2px}
   .icon.next{border-width:7px 0 7px 12px;border-color:transparent transparent transparent var(--ink-soft);margin-left:2px}
+
   .title{
     grid-column:1 / 4;
     font-weight:600; font-size:12.5px; letter-spacing:.2px;
@@ -58,6 +71,7 @@
   }
   .time{ grid-column:2 / 3; display:flex; justify-content:space-between; font-size:12px; opacity:.85; margin-top:6px }
   .hidden{display:none !important}
+  .msg{ grid-column:1/4; font-size:12px; color:#7a5e4a; opacity:.9 }
 </style>
 </head>
 <body>
@@ -82,12 +96,14 @@
     <div></div>
     <div class="time"><span id="now">00:00</span><span id="dur">--:--</span></div>
     <button class="btn" id="next" aria-label="Piste suivante"><div class="icon next"></div></button>
+
+    <div class="msg hidden" id="msg"></div>
   </div>
 
   <audio id="audio" preload="metadata"></audio>
 
 <script>
-  /* === 1) Liste des pistes (mets tes vrais titres si tu veux) === */
+  /* === 1) Liste des pistes (garde tes vrais noms) === */
   const tracks = [
     { src: 'sombr back to friends official video.mp3', title: 'Track 1' },
     { src: 'Chappell Roan Good Luck Babe Official Music Video.mp3', title: 'Track 2' },
@@ -107,11 +123,13 @@
   const scrub = document.getElementById('scrub');
   const nowEl = document.getElementById('now');
   const durEl = document.getElementById('dur');
+  const msg   = document.getElementById('msg');
 
   // === 3) Helpers ===
   const fmt = s => !isFinite(s) ? '--:--' :
     String(Math.floor(s/60)).padStart(2,'0') + ':' + String(Math.floor(s%60)).padStart(2,'0');
-  const setIcons = playing => { iconPlay.classList.toggle('hidden', playing); iconPause.classList.toggle('hidden', !playing); };
+  const setIcons = p => { iconPlay.classList.toggle('hidden', p); iconPause.classList.toggle('hidden', !p); };
+  const abs = path => { try { return new URL(path, location.href).href } catch { return path } };
 
   let i = 0; // index courant
 
@@ -119,23 +137,37 @@
     if (!tracks.length) return;
     i = (idx + tracks.length) % tracks.length;
     const t = tracks[i];
-    audio.src = t.src;
+
+    // Encodage URL pour espaces/accents
+    const encoded = abs(encodeURI(t.src));
+    audio.src = encoded;
+
     titleEl.textContent = t.title || t.src;
     fill.style.width = '0%';
     scrub.value = 0;
     nowEl.textContent = '00:00';
     durEl.textContent = '--:--';
+    msg.classList.add('hidden'); msg.textContent = '';
+
     audio.addEventListener('loadedmetadata', () => {
       durEl.textContent = fmt(audio.duration);
       if (autoplay) audio.play().then(()=>setIcons(true)).catch(()=>setIcons(false));
     }, { once:true });
+
     if (!autoplay) setIcons(false);
   }
 
   // === 4) Events ===
   toggle.addEventListener('click', () => {
-    if (audio.paused) { audio.play(); setIcons(true); }
-    else { audio.pause(); setIcons(false); }
+    if (audio.paused) {
+      audio.play().then(()=>setIcons(true)).catch(err=>{
+        msg.textContent = 'Lecture impossible (vérifie le nom du MP3).';
+        msg.classList.remove('hidden');
+        setIcons(false);
+      });
+    } else {
+      audio.pause(); setIcons(false);
+    }
   });
   prevBtn.addEventListener('click', () => load(i-1, true));
   nextBtn.addEventListener('click', () => load(i+1, true));
@@ -150,7 +182,12 @@
     const p = Number(e.target.value)/100;
     audio.currentTime = p * (audio.duration || 0);
   });
-  audio.addEventListener('ended', () => load(i+1, true)); // passe à la piste suivante automatiquement
+  audio.addEventListener('error', () => {
+    msg.textContent = 'Erreur audio : "' + (tracks[i]?.src || '') + '" introuvable ?';
+    msg.classList.remove('hidden');
+    setIcons(false);
+  });
+  audio.addEventListener('ended', () => load(i+1, true)); // auto piste suivante
 
   // === 5) Démarrage ===
   if (!tracks.length) titleEl.textContent = 'Aucune piste';
