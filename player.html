@@ -3,16 +3,12 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mini Lecteur – Playlist</title>
+<title>Mini Lecteur – Simple</title>
 <style>
   :root{
-    --bg:#f5efe6;        /* fond beige */
-    --ink:#4e453a;       /* texte/icônes */
-    --ink-soft:#6b5b4a;  /* accent foncé */
-    --track:#e8dfd3;     /* barre fond */
-    --fill:#b79f84;      /* barre remplie */
-    --w:300px;           /* largeur du lecteur */
-    --h:84px;            /* hauteur (avec titre + temps) */
+    --bg:#f5efe6; --ink:#4e453a; --ink-soft:#6b5b4a;
+    --track:#e8dfd3; --fill:#b79f84;
+    --w:300px; --h:72px;
   }
   *{box-sizing:border-box}
   html,body{margin:0;background:transparent}
@@ -22,38 +18,25 @@
     border-radius:14px; padding:10px 12px;
     box-shadow:0 1px 4px rgba(0,0,0,.06), inset 0 0 0 1px rgba(0,0,0,.04);
     font:500 13px/1 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;
-    display:grid; grid-template-columns:32px 1fr 32px; grid-template-rows:auto auto; gap:8px 10px; align-items:center;
+    display:grid; grid-template-columns:32px 1fr; grid-template-rows:auto auto; gap:8px 10px; align-items:center;
   }
-
-  /* ===== Boutons neutralisés (anti-styles du forum) ===== */
+  /* Contrôle (div, pas de <button>) */
   .btn{
-    all: unset;
-    -webkit-appearance: none; appearance: none;
     display:grid; place-items:center;
     width:32px; height:32px; border-radius:999px;
-    background:var(--track) !important;
-    cursor:pointer; user-select:none;
-    transition:transform .08s ease;
-    border:none !important; box-shadow:none !important;
-    padding:0; margin:0; line-height:1;
+    background:var(--track);
+    cursor:pointer; user-select:none; transition:transform .08s ease;
+    outline:none; border:none;
   }
   .btn:active{ transform:scale(.96) }
-  .btn::before, .btn::after{ content:none !important; display:none !important; }
-  .player button{ background-image:none !important; border:none !important; box-shadow:none !important; }
+  .btn:focus-visible{ box-shadow:0 0 0 2px #00000022, 0 0 0 4px #00000011 }
 
   .icon{width:0;height:0;border-style:solid}
   .icon.play{border-width:7px 0 7px 12px;border-color:transparent transparent transparent var(--ink-soft);margin-left:2px}
   .icon.pause{width:12px;height:12px;border:none;display:flex;gap:3px}
   .icon.pause span{width:4px;height:12px;background:var(--ink-soft);display:block;border-radius:1px}
-  .icon.prev{border-width:7px 12px 7px 0;border-color:transparent var(--ink-soft) transparent transparent;margin-right:2px}
-  .icon.next{border-width:7px 0 7px 12px;border-color:transparent transparent transparent var(--ink-soft);margin-left:2px}
 
-  .title{
-    grid-column:1 / 4;
-    font-weight:600; font-size:12.5px; letter-spacing:.2px;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .bar{ grid-column:2 / 3; grid-row:2;
+  .bar{ grid-column:2 / 3;
     position:relative;width:100%;height:8px;background:var(--track);
     border-radius:999px; overflow:hidden;
   }
@@ -67,35 +50,29 @@
     -webkit-appearance:none; appearance:none;
     width:14px; height:14px; border-radius:999px;
     background:var(--ink-soft); border:2px solid var(--bg);
-    box-shadow:0 0 0 2px var(--fill); margin-top:-3px;
+    box-shadow:0 0 0 2px var(--fill); margin-top:-3px
   }
-  .time{ grid-column:2 / 3; display:flex; justify-content:space-between; font-size:12px; opacity:.85; margin-top:6px }
+  .time{ grid-column:2 / 3; display:flex; justify-content:space-between; font-size:12px; opacity:.85; margin-top:2px }
   .hidden{display:none !important}
-  .msg{ grid-column:1/4; font-size:12px; color:#7a5e4a; opacity:.9 }
+  .msg{ grid-column:1/3; font-size:12px; color:#7a5e4a; opacity:.9 }
 </style>
 </head>
 <body>
   <div class="player" role="group" aria-label="Lecteur audio">
-    <!-- Ligne 1 : Titre courant -->
-    <div class="title" id="title">—</div>
-
-    <!-- Ligne 2 : boutons + barre -->
-    <button class="btn" id="prev" aria-label="Piste précédente"><div class="icon prev"></div></button>
+    <!-- Ligne 1 : Play/Pause + Barre -->
+    <div class="btn" id="toggle" role="button" tabindex="0" aria-label="Lecture/Pause">
+      <div class="icon play" id="iconPlay"></div>
+      <div class="icon pause hidden" id="iconPause"><span></span><span></span></div>
+    </div>
 
     <div class="bar">
       <div class="fill" id="fill"></div>
       <input type="range" min="0" max="100" value="0" step="0.1" id="scrub" class="scrub" aria-label="Barre de progression">
     </div>
 
-    <button class="btn" id="toggle" aria-label="Lecture/Pause">
-      <div class="icon play" id="iconPlay"></div>
-      <div class="icon pause hidden" id="iconPause"><span></span><span></span></div>
-    </button>
-
-    <!-- Ligne 3 : temps -->
+    <!-- Ligne 2 : Temps -->
     <div></div>
     <div class="time"><span id="now">00:00</span><span id="dur">--:--</span></div>
-    <button class="btn" id="next" aria-label="Piste suivante"><div class="icon next"></div></button>
 
     <div class="msg hidden" id="msg"></div>
   </div>
@@ -103,95 +80,78 @@
   <audio id="audio" preload="metadata"></audio>
 
 <script>
-  /* === 1) Liste des pistes (garde tes vrais noms) === */
+  /* Pistes (garde tes noms exacts, espaces/accents ok) */
   const tracks = [
-    { src: 'sombr back to friends official video.mp3', title: 'Track 1' },
-    { src: 'Chappell Roan Good Luck Babe Official Music Video.mp3', title: 'Track 2' },
-    { src: 'RAYE WHERE IS MY HUSBAND Official Music Video.mp3', title: 'Track 3' },
-    { src: 'MICAH PALACE - RODEO (Official English Lyric Video).mp3', title: 'Track 4' },
+    { src: 'sombr back to friends official video.mp3' },
+    { src: 'Chappell Roan Good Luck Babe Official Music Video.mp3' },
+    { src: 'RAYE WHERE IS MY HUSBAND Official Music Video.mp3' },
+    { src: 'MICAH PALACE - RODEO (Official English Lyric Video).mp3' },
   ];
 
-  // === 2) Éléments ===
-  const audio   = document.getElementById('audio');
-  const titleEl = document.getElementById('title');
-  const toggle  = document.getElementById('toggle');
-  const iconPlay  = document.getElementById('iconPlay');
-  const iconPause = document.getElementById('iconPause');
-  const prevBtn = document.getElementById('prev');
-  const nextBtn = document.getElementById('next');
-  const fill  = document.getElementById('fill');
-  const scrub = document.getElementById('scrub');
-  const nowEl = document.getElementById('now');
-  const durEl = document.getElementById('dur');
-  const msg   = document.getElementById('msg');
+  const audio=document.getElementById('audio'),
+        toggle=document.getElementById('toggle'),
+        iconPlay=document.getElementById('iconPlay'),
+        iconPause=document.getElementById('iconPause'),
+        fill=document.getElementById('fill'),
+        scrub=document.getElementById('scrub'),
+        nowEl=document.getElementById('now'),
+        durEl=document.getElementById('dur'),
+        msg=document.getElementById('msg');
 
-  // === 3) Helpers ===
-  const fmt = s => !isFinite(s) ? '--:--' :
-    String(Math.floor(s/60)).padStart(2,'0') + ':' + String(Math.floor(s%60)).padStart(2,'0');
-  const setIcons = p => { iconPlay.classList.toggle('hidden', p); iconPause.classList.toggle('hidden', !p); };
-  const abs = path => { try { return new URL(path, location.href).href } catch { return path } };
+  const fmt=s=>!isFinite(s)?'--:--':String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0');
+  const setIcons=p=>{iconPlay.classList.toggle('hidden',p);iconPause.classList.toggle('hidden',!p)};
+  const abs=path=>{try{return new URL(path,location.href).href}catch{return path}};
+  const enc=path=>abs(encodeURI(path));
 
-  let i = 0; // index courant
+  let i=0;
+  function load(idx,autoplay=false){
+    if(!tracks.length) return;
+    i=(idx+tracks.length)%tracks.length;
+    audio.src=enc(tracks[i].src);
+    fill.style.width='0%'; scrub.value=0;
+    nowEl.textContent='00:00'; durEl.textContent='--:--';
+    msg.classList.add('hidden'); msg.textContent='';
 
-  function load(idx, autoplay=false){
-    if (!tracks.length) return;
-    i = (idx + tracks.length) % tracks.length;
-    const t = tracks[i];
+    audio.addEventListener('loadedmetadata',()=>{
+      durEl.textContent=fmt(audio.duration);
+      if(autoplay) audio.play().then(()=>setIcons(true)).catch(()=>setIcons(false));
+    },{once:true});
 
-    // Encodage URL pour espaces/accents
-    const encoded = abs(encodeURI(t.src));
-    audio.src = encoded;
-
-    titleEl.textContent = t.title || t.src;
-    fill.style.width = '0%';
-    scrub.value = 0;
-    nowEl.textContent = '00:00';
-    durEl.textContent = '--:--';
-    msg.classList.add('hidden'); msg.textContent = '';
-
-    audio.addEventListener('loadedmetadata', () => {
-      durEl.textContent = fmt(audio.duration);
-      if (autoplay) audio.play().then(()=>setIcons(true)).catch(()=>setIcons(false));
-    }, { once:true });
-
-    if (!autoplay) setIcons(false);
+    if(!autoplay) setIcons(false);
   }
 
-  // === 4) Events ===
-  toggle.addEventListener('click', () => {
-    if (audio.paused) {
+  function act(el, fn){
+    el.addEventListener('click', fn);
+    el.addEventListener('keydown', e=>{
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); fn(); }
+    });
+  }
+
+  act(toggle, ()=>{
+    if(audio.paused){
       audio.play().then(()=>setIcons(true)).catch(err=>{
-        msg.textContent = 'Lecture impossible (vérifie le nom du MP3).';
-        msg.classList.remove('hidden');
-        setIcons(false);
+        msg.textContent='Lecture impossible (nom/URL du MP3 ?)'; msg.classList.remove('hidden'); setIcons(false);
       });
-    } else {
-      audio.pause(); setIcons(false);
-    }
+    } else { audio.pause(); setIcons(false); }
   });
-  prevBtn.addEventListener('click', () => load(i-1, true));
-  nextBtn.addEventListener('click', () => load(i+1, true));
 
-  audio.addEventListener('timeupdate', () => {
-    const p = (audio.currentTime / (audio.duration || 1)) * 100;
-    fill.style.width = p + '%';
-    scrub.value = p;
-    nowEl.textContent = fmt(audio.currentTime);
+  audio.addEventListener('timeupdate', ()=>{
+    const p=(audio.currentTime/(audio.duration||1))*100;
+    fill.style.width=p+'%'; scrub.value=p;
+    nowEl.textContent=fmt(audio.currentTime);
   });
-  scrub.addEventListener('input', e => {
-    const p = Number(e.target.value)/100;
-    audio.currentTime = p * (audio.duration || 0);
-  });
-  audio.addEventListener('error', () => {
-    msg.textContent = 'Erreur audio : "' + (tracks[i]?.src || '') + '" introuvable ?';
-    msg.classList.remove('hidden');
-    setIcons(false);
-  });
-  audio.addEventListener('ended', () => load(i+1, true)); // auto piste suivante
 
-  // === 5) Démarrage ===
-  if (!tracks.length) titleEl.textContent = 'Aucune piste';
-  load(0, false);
+  scrub.addEventListener('input', e=>{
+    const p=Number(e.target.value)/100;
+    audio.currentTime=p*(audio.duration||0);
+  });
+
+  audio.addEventListener('ended', ()=>load(i+1,true));
+  audio.addEventListener('error', ()=>{
+    msg.textContent='Erreur audio sur "'+(tracks[i]?.src||'')+'".'; msg.classList.remove('hidden'); setIcons(false);
+  });
+
+  load(0,false);
 </script>
 </body>
 </html>
